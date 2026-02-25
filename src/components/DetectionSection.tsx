@@ -9,6 +9,7 @@ import {
   detectJobScam,
   detectCustomerCareScam,
   detectWhatsAppLinkScam,
+  detectUrlScam,
 } from '../scamDetection';
 
 interface DetectionSectionProps {
@@ -47,6 +48,9 @@ export function DetectionSection({ section, language }: DetectionSectionProps) {
         case 'whatsapp':
           detectionResult = detectWhatsAppLinkScam(input, language);
           break;
+        case 'url':
+          detectionResult = detectUrlScam(input, language);
+          break;
         default:
           detectionResult = {
             score: 0,
@@ -57,6 +61,7 @@ export function DetectionSection({ section, language }: DetectionSectionProps) {
       }
 
       setResult(detectionResult);
+      setInput('');
       setIsChecking(false);
 
       if (detectionResult.classification !== 'safe') {

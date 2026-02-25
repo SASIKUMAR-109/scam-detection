@@ -13,6 +13,7 @@ export const translations: Record<string, Translations> = {
       job: 'Fake Job Offers',
       customercare: 'Fake Customer Care',
       whatsapp: 'Fraud WhatsApp Links',
+      url: 'URL Safety Check',
     },
     sections: {
       upi: {
@@ -40,6 +41,11 @@ export const translations: Record<string, Translations> = {
         placeholder: 'Enter WhatsApp link or URL...',
         button: 'Check Risk',
       },
+      url: {
+        title: 'Check URL Safety',
+        placeholder: 'Enter any URL to check (e.g. https://example.com)',
+        button: 'Analyse URL',
+      },
     },
     results: {
       safe: 'Safe',
@@ -65,6 +71,7 @@ export const translations: Record<string, Translations> = {
       job: 'నకిలీ ఉద్యోగ ఆఫర్లు',
       customercare: 'నకిలీ కస్టమర్ కేర్',
       whatsapp: 'మోసపూరిత WhatsApp లింక్‌లు',
+      url: 'URL సురక్షితత తనిఖీ',
     },
     sections: {
       upi: {
@@ -91,6 +98,11 @@ export const translations: Record<string, Translations> = {
         title: 'మోసపూరిత WhatsApp లింక్‌లను తనిఖీ చేయండి',
         placeholder: 'WhatsApp లింక్ లేదా URL ఎంటర్ చేయండి...',
         button: 'రిస్క్ తనిఖీ చేయండి',
+      },
+      url: {
+        title: 'URL సురక్షితత తనిఖీ చేయండి',
+        placeholder: 'తనిఖీ చేయడానికి URL ఎంటర్ చేయండి (ఉదా: https://example.com)',
+        button: 'URL విశ్లేషించండి',
       },
     },
     results: {

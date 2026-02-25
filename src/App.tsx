@@ -4,19 +4,48 @@ import { Language, Section } from './types';
 import { translations } from './translations';
 import { LanguageSelection } from './components/LanguageSelection';
 import { DetectionSection } from './components/DetectionSection';
+import HomeHero from './components/HomeHero';
 
 const LANGUAGE_KEY = 'scam-detector-language';
 
 function App() {
-  const [language, setLanguage] = useState<Language | null>(null);
+  const [language, setLanguage] = useState<Language | null>('en');
   const [activeSection, setActiveSection] = useState<Section>('whatsapp');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showHome, setShowHome] = useState(true);
 
   useEffect(() => {
     const savedLanguage = localStorage.getItem(LANGUAGE_KEY) as Language | null;
     if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'te')) {
       setLanguage(savedLanguage);
     }
+  }, []);
+
+  // Sync active section with URL hash so each section behaves like a separate page
+  useEffect(() => {
+    const getSectionFromHash = (): Section => {
+      const h = (window.location.hash || '').replace('#', '');
+      if (h === 'upi' || h === 'sms' || h === 'job' || h === 'customercare' || h === 'whatsapp' || h === 'url') return h;
+      return 'whatsapp';
+    };
+
+    const init = () => {
+      const sec = getSectionFromHash();
+      setActiveSection(sec);
+      // showHome only when hash is empty
+      setShowHome(!window.location.hash);
+    };
+
+    init();
+
+    const onHash = () => {
+      const sec = getSectionFromHash();
+      setActiveSection(sec);
+      setShowHome(!window.location.hash);
+    };
+
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
   const handleLanguageSelect = (lang: Language) => {
@@ -35,7 +64,7 @@ function App() {
   }
 
   const t = translations[language];
-  const sections: Section[] = ['upi', 'sms', 'job', 'customercare', 'whatsapp'];
+  const sections: Section[] = ['upi', 'sms', 'job', 'customercare', 'whatsapp', 'url'];
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -73,18 +102,30 @@ function App() {
 
           <div className={`${showMobileMenu ? 'block' : 'hidden'} md:block pb-4`}>
             <div className="flex flex-col md:flex-row gap-2 md:gap-3">
+              <button
+                onClick={() => {
+                  // navigate to home (clear hash) and show hero
+                  history.replaceState(null, '', window.location.pathname + window.location.search);
+                  setShowHome(true);
+                  setShowMobileMenu(false);
+                }}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors text-left md:text-center ${showHome ? 'bg-white text-blue-600' : 'bg-blue-800 text-white hover:bg-blue-700'
+                  }`}
+              >
+                {language === 'en' ? 'Home' : 'హోమ్'}
+              </button>
               {sections.map((section) => (
                 <button
                   key={section}
                   onClick={() => {
-                    setActiveSection(section);
+                    // update the URL so each section is its own page
+                    window.location.hash = section;
                     setShowMobileMenu(false);
                   }}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors text-left md:text-center ${
-                    activeSection === section
-                      ? 'bg-teal-500 text-white'
-                      : 'bg-blue-800 text-white hover:bg-blue-700'
-                  }`}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors text-left md:text-center ${activeSection === section
+                    ? 'bg-teal-500 text-white'
+                    : 'bg-blue-800 text-white hover:bg-blue-700'
+                    }`}
                 >
                   {t.navbar[section]}
                 </button>
@@ -95,7 +136,19 @@ function App() {
       </nav>
 
       <main className="py-8 px-4 sm:px-6 lg:px-8">
-        <DetectionSection section={activeSection} language={language} />
+        {showHome && (
+          <HomeHero
+            language={language}
+            onGetStarted={() => {
+              // navigate to whatsapp section and hide hero
+              window.location.hash = 'whatsapp';
+              setShowHome(false);
+              setActiveSection('whatsapp');
+            }}
+          />
+        )}
+
+        {!showHome && <DetectionSection section={activeSection} language={language} />}
       </main>
 
       <footer className="bg-white shadow-lg mt-16 py-8 px-4">

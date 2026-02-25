@@ -41,7 +41,20 @@ const suspiciousUpiHandles = [
 export function detectUpiScam(upiId: string, language: Language): RiskResult {
   let score = 0;
   const reasons: string[] = [];
-  const lowerUpi = upiId.toLowerCase();
+  const lowerUpi = upiId.toLowerCase().trim();
+
+  // Validate UPI ID format: must be in the form username@handle
+  // e.g. john@okicici, 9876543210@paytm, user.name@ybl
+  if (!/^[\w.\-]+@[a-zA-Z]{2,}$/.test(upiId.trim())) {
+    return {
+      score: 0,
+      classification: 'suspicious',
+      message: language === 'en'
+        ? '❌ Please enter a valid UPI ID (e.g. name@bank or 9876543210@paytm).'
+        : '❌ దయచేసి చెల్లుబాటు అయ్యే UPI ID నమోదు చేయండి (ఉదా: name@bank లేదా 9876543210@paytm).',
+      reasons: [language === 'en' ? 'Input is not a valid UPI ID format' : 'ఇన్‌పుట్ చెల్లుబాటు అయ్యే UPI ID ఆకృతిలో లేదు'],
+    };
+  }
 
   suspiciousUpiHandles.forEach(handle => {
     if (lowerUpi.includes(handle)) {
@@ -70,6 +83,7 @@ export function detectUpiScam(upiId: string, language: Language): RiskResult {
 
   return classifyRisk(score, reasons, language);
 }
+
 
 export function detectSmsScam(text: string, language: Language): RiskResult {
   let score = 0;
@@ -164,6 +178,19 @@ export function detectCustomerCareScam(phoneNumber: string, language: Language):
   let score = 0;
   const reasons: string[] = [];
 
+  // Reject non-numeric input (e.g., plain names or random text)
+  const stripped = phoneNumber.replace(/[\s\-+]/g, '');
+  if (!/^\d+$/.test(stripped)) {
+    return {
+      score: 0,
+      classification: 'suspicious',
+      message: language === 'en'
+        ? '❌ Please enter a valid phone number (digits only).'
+        : '❌ దయచేసి చెల్లుబాటు అయ్యే ఫోన్ నంబర్ నమోదు చేయండి (కేవలం అంకెలు మాత్రమే).',
+      reasons: [language === 'en' ? 'Input is not a phone number' : 'ఇన్‌పుట్ ఫోన్ నంబర్ కాదు'],
+    };
+  }
+
   if (!/^\+?[0-9]{10,15}$/.test(phoneNumber.replace(/[\s-]/g, ''))) {
     score += 20;
     reasons.push(language === 'en'
@@ -191,6 +218,11 @@ export function detectCustomerCareScam(phoneNumber: string, language: Language):
       ? 'Claims to be customer care - verify from official website'
       : 'కస్టమర్ కేర్ అని చెప్పుకుంటోంది - అధికారిక వెబ్‌సైట్ నుండి ధృవీకరించండి');
   }
+  // Baseline: always advise user to verify — no unverified number should be "safe"
+  score += 35;
+  reasons.push(language === 'en'
+    ? 'Always verify this number from the official website or app before calling'
+    : 'కాల్ చేయడానికి ముందు ఈ నంబర్‌ను అధికారిక వెబ్‌సైట్ లేదా యాప్ నుండి ధృవీకరించండి');
 
   return classifyRisk(Math.max(0, score), reasons, language);
 }
@@ -199,6 +231,19 @@ export function detectWhatsAppLinkScam(url: string, language: Language): RiskRes
   let score = 0;
   const reasons: string[] = [];
   const lowerUrl = url.toLowerCase();
+
+  // Reject input that is not a URL (must contain a dot and either start with http/https or look like a domain)
+  const looksLikeUrl = /^https?:\/\//i.test(url) || /^www\./i.test(url) || /\.[a-z]{2,}([\/\?#]|$)/i.test(url);
+  if (!looksLikeUrl) {
+    return {
+      score: 0,
+      classification: 'suspicious',
+      message: language === 'en'
+        ? '❌ Please enter a valid URL (e.g. https://example.com).'
+        : '❌ దయచేసి చెల్లుబాటు అయ్యే URL నమోదు చేయండి (ఉదా: https://example.com).',
+      reasons: [language === 'en' ? 'Input is not a valid URL' : 'ఇన్‌పుట్ చెల్లుబాటు అయ్యే URL కాదు'],
+    };
+  }
 
   suspiciousDomains.forEach(domain => {
     if (lowerUrl.includes(domain)) {
@@ -247,6 +292,152 @@ export function detectWhatsAppLinkScam(url: string, language: Language): RiskRes
       ? 'Fake WhatsApp domain - not official wa.me or whatsapp.com'
       : 'నకిలీ WhatsApp డొమైన్ - అధికారిక wa.me లేదా whatsapp.com కాదు');
   }
+
+  return classifyRisk(score, reasons, language);
+}
+
+export function detectUrlScam(url: string, language: Language): RiskResult {
+  let score = 0;
+  const reasons: string[] = [];
+  const lowerUrl = url.toLowerCase().trim();
+
+  // --- Input validation: must look like a URL ---
+  const looksLikeUrl =
+    /^https?:\/\//i.test(url) ||
+    /^www\./i.test(url) ||
+    /\.[a-z]{2,}([\/\?#]|$)/i.test(url);
+
+  if (!looksLikeUrl) {
+    return {
+      score: 0,
+      classification: 'suspicious',
+      message:
+        language === 'en'
+          ? '❌ Please enter a valid URL (e.g. https://example.com).'
+          : '❌ దయచేసి చెల్లుబాటు అయ్యే URL నమోదు చేయండి (ఉదా: https://example.com).',
+      reasons: [
+        language === 'en'
+          ? 'Input is not a recognisable URL'
+          : 'ఇన్‌పుట్ గుర్తించదగిన URL కాదు',
+      ],
+    };
+  }
+
+  // Normalise: add https:// if missing so we can parse it
+  const fullUrl = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+  let hostname = '';
+  try {
+    hostname = new URL(fullUrl).hostname.toLowerCase();
+  } catch {
+    hostname = lowerUrl.replace(/^https?:\/\//i, '').split('/')[0];
+  }
+
+  // 1. Suspicious TLDs
+  const badTlds = ['.xyz', '.tk', '.ml', '.ga', '.cf', '.ru', '.cn', '.top', '.pw', '.cc', '.gq', '.work', '.click', '.link', '.surf'];
+  badTlds.forEach((tld) => {
+    if (hostname.endsWith(tld)) {
+      score += 30;
+      reasons.push(
+        language === 'en'
+          ? `High-risk TLD detected: "${tld}"`
+          : `అధిక-ప్రమాద TLD కనుగొనబడింది: "${tld}"`
+      );
+    }
+  });
+
+  // 2. IP address used as domain (major red flag)
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+    score += 50;
+    reasons.push(
+      language === 'en'
+        ? 'IP address used instead of domain name — very suspicious!'
+        : 'డొమైన్ పేరు కాకుండా IP చిరునామా వాడబడింది — చాలా అనుమానాస్పదం!'
+    );
+  }
+
+  // 3. Not HTTPS (HTTP only)
+  if (/^http:\/\//i.test(url)) {
+    score += 20;
+    reasons.push(
+      language === 'en'
+        ? 'Not using secure HTTPS connection'
+        : 'సురక్షిత HTTPS కనెక్షన్ ఉపయోగించడం లేదు'
+    );
+  }
+
+  // 4. URL shorteners (hides real destination)
+  const shorteners = ['bit.ly', 'tinyurl', 'goo.gl', 'ow.ly', 't.co', 'rebrand.ly', 'short.link', 'cutt.ly', 'is.gd', 'buff.ly'];
+  shorteners.forEach((s) => {
+    if (hostname.includes(s)) {
+      score += 25;
+      reasons.push(
+        language === 'en'
+          ? `URL shortener detected: "${s}" — hides real destination`
+          : `URL షార్ట్‌నర్ కనుగొనబడింది: "${s}" — అసలు గమ్యస్థానాన్ని దాచిపెడుతుంది`
+      );
+    }
+  });
+
+  // 5. Brand impersonation via subdomain trick (e.g. paypal.evil.com)
+  const trustedBrands = ['paypal', 'google', 'facebook', 'amazon', 'apple', 'microsoft', 'netflix', 'sbi', 'hdfc', 'icici', 'paytm', 'phonepe'];
+  const parts = hostname.split('.');
+  const registeredDomain = parts.slice(-2).join('.');
+  trustedBrands.forEach((brand) => {
+    if (hostname.includes(brand) && !registeredDomain.startsWith(brand)) {
+      score += 45;
+      reasons.push(
+        language === 'en'
+          ? `Brand impersonation detected: "${brand}" appears in subdomain — likely phishing!`
+          : `బ్రాండ్ మోసం కనుగొనబడింది: "${brand}" సబ్‌డొమైన్‌లో కనిపిస్తోంది — ఫిషింగ్ కావచ్చు!`
+      );
+    }
+  });
+
+  // 6. Scam/phishing keywords in URL path
+  const scamWords = ['login', 'signin', 'verify', 'account', 'secure', 'update', 'confirm', 'prize', 'winner', 'claim', 'free', 'reward', 'kyc', 'otp', 'refund'];
+  scamWords.forEach((word) => {
+    if (lowerUrl.includes(word)) {
+      score += 10;
+      reasons.push(
+        language === 'en'
+          ? `Phishing keyword in URL: "${word}"`
+          : `URL లో ఫిషింగ్ పదం: "${word}"`
+      );
+    }
+  });
+
+  // 7. Excessive subdomains (e.g. a.b.c.d.evil.com)
+  if (parts.length > 4) {
+    score += 20;
+    reasons.push(
+      language === 'en'
+        ? 'Unusually deep subdomain structure — common in phishing'
+        : 'అసాధారణంగా లోతైన సబ్‌డొమైన్ నిర్మాణం — ఫిషింగ్‌లో సాధారణం'
+    );
+  }
+
+  // 8. Excessively long URL (obfuscation)
+  if (url.length > 100) {
+    score += 15;
+    reasons.push(
+      language === 'en'
+        ? 'Unusually long URL — may be hiding the real destination'
+        : 'అసాధారణంగా పొడవైన URL — అసలు గమ్యస్థానాన్ని దాచవచ్చు'
+    );
+  }
+
+  // 9. Scam patterns in full URL
+  const scamPatternList = ['lottery', 'casino', 'win-cash', 'earn-money', 'double-money', 'investment', 'bitcoin', 'crypto'];
+  scamPatternList.forEach((p) => {
+    if (lowerUrl.includes(p)) {
+      score += 20;
+      reasons.push(
+        language === 'en'
+          ? `Scam-related term in URL: "${p}"`
+          : `URL లో స్కామ్-సంబంధిత పదం: "${p}"`
+      );
+    }
+  });
 
   return classifyRisk(score, reasons, language);
 }

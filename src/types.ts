@@ -1,6 +1,6 @@
 export type Language = 'en' | 'te';
 
-export type Section = 'upi' | 'sms' | 'job' | 'customercare' | 'whatsapp';
+export type Section = 'upi' | 'sms' | 'job' | 'customercare' | 'whatsapp' | 'url';
 
 export interface RiskResult {
   score: number;
@@ -21,6 +21,7 @@ export interface Translations {
     job: string;
     customercare: string;
     whatsapp: string;
+    url: string;
   };
   sections: {
     upi: {
@@ -44,6 +45,11 @@ export interface Translations {
       button: string;
     };
     whatsapp: {
+      title: string;
+      placeholder: string;
+      button: string;
+    };
+    url: {
       title: string;
       placeholder: string;
       button: string;
